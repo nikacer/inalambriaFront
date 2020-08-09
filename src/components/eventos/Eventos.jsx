@@ -4,8 +4,11 @@ import {
   ObtenerEventos,
   guardarEvento as gE,
   eliminarEvento,
+  agregarBoleta,
+  eliminarBoleta,
+  comprarBoleta,
 } from "../../services/Api";
-import { Card, message, Row as R, Col as C } from "antd";
+import { Card, message, Row as R, Col as C, Popconfirm } from "antd";
 import moment from "moment";
 
 import { FormReactBoostrap } from "../../services/formulariosServices";
@@ -17,6 +20,7 @@ import more from "../../assets/img/plus.svg";
 import edit from "../../assets/img/002-pencil.svg";
 import del from "../../assets/img/001-delete.svg";
 import ver from "../../assets/img/eye.svg";
+import pay from "../../assets/img/pay.svg";
 
 export default function Eventos() {
   const initDataEvento = {
@@ -50,7 +54,6 @@ export default function Eventos() {
 
   const obtenerData = () => {
     ObtenerEventos().then((resp) => {
-      console.log(resp.data);
       if (resp.data.eventos && resp.data.eventos.length > 0)
         seteventos(resp.data.eventos);
       if (resp.data.boleteria && resp.data.boleteria.length > 0)
@@ -84,26 +87,85 @@ export default function Eventos() {
     });
   };
 
+  const eliminarEve = (id) => {
+    eliminarEvento(id).then((resp) => {
+      if (resp.data.del) {
+        obtenerData();
+        message.success("Se a eliminado correctamente");
+      } else {
+        message.error(
+          "No fue posible guardar en este momento por favor intenta mas tarde"
+        );
+      }
+    });
+  };
+
   const guardarBoleta = (event) => {
     event.preventDefault();
     const response = construirObjeto("boleta");
-    console.log(response);
+    agregarBoleta(response).then((res) => {
+      if (res.data.save) {
+        obtenerData();
+        message.success("Se a guardado correctamente");
+        setModal({
+          visible: false,
+          data: initDataEvento,
+          edit: false,
+          form: "evento",
+        });
+      } else {
+        message.error(
+          "No fue posible guardar en este momento por favor intenta mas tarde"
+        );
+      }
+    });
+  };
+
+  const eliminarBo = (id) => {
+    eliminarBoleta(id).then((resp) => {
+      if (resp.data.del) {
+        obtenerData();
+        message.success("Se a eliminado correctamente");
+      } else {
+        message.error(
+          "No fue posible guardar en este momento por favor intenta mas tarde"
+        );
+      }
+    });
   };
 
   const accionesModal = (form, data, edit) => {
     setModal({ visible: true, data, form, edit });
   };
 
+  const comprarBo = (boleta) => {
+    const { id, idEvento, stock, vendidas } = boleta;
+    if (stock > vendidas) {
+      comprarBoleta({
+        idBoleta: id,
+        idEvento,
+      }).then((resp) => {
+        if (resp.data.vender) {
+          obtenerData();
+          message.success("Se a vendido :)");
+        }
+      });
+    } else {
+      message.warning("No te queda stock para vender esta boleta");
+    }
+    console.log("comprar boleta clik", boleta);
+  };
+
   const contruirVistaBoletas = () => {
     return (
       <Fragment>
         <h1>Vista boletas</h1>
-        {boletas.event && (
+        {boletas.event && boletas.data && boletas.data.length > 0 && (
           <Table striped bordered hover>
             <thead>
               <tr>
                 <th>Nombre</th>
-                <th>Stock</th>
+                <th>Stock / vendidas</th>
                 <th>Precio</th>
                 <th>acciones</th>
               </tr>
@@ -114,7 +176,9 @@ export default function Eventos() {
                   return (
                     <tr>
                       <td>{boleta.nombre}</td>
-                      <td>{boleta.stock}</td>
+                      <td>
+                        {boleta.stock} / {boleta.vendidas}
+                      </td>
                       <td>{boleta.precio}</td>
                       <td>
                         <ul className="accione">
@@ -126,7 +190,17 @@ export default function Eventos() {
                             <img src={edit} alt="editar boleta" />
                           </li>
                           <li>
-                            <img src={del} alt="eliminar boleta" />
+                            <Popconfirm
+                              title="¿Seguro quiere borrar la boleta?"
+                              onConfirm={() => eliminarBo(boleta.id)}
+                              okText="Si"
+                              cancelText="No"
+                            >
+                              <img src={del} alt="eliminar boleta" />
+                            </Popconfirm>
+                          </li>
+                          <li onClick={() => comprarBo(boleta)}>
+                            <img src={pay} alt="comprar boleta" />
                           </li>
                         </ul>
                       </td>
@@ -191,6 +265,33 @@ export default function Eventos() {
       type: "text",
       value: modal.data.nombre ? modal.data.nombre : "",
     },
+    {
+      name: "idEvento",
+      isInvalid: "",
+      required: true,
+      placeholder: "idEvento",
+      type: "hidden",
+      value: modal.data.idEvento,
+    },
+    {
+      name: "stock",
+      isInvalid: "Numero de boletas disponibles",
+      required: true,
+      label: "Stock disponible:",
+      placeholder: "Ingrese numero",
+      type: "number",
+      value: modal.data.stock ? modal.data.stock : 15,
+    },
+    {
+      name: "precio",
+      isInvalid: "costo no es valido",
+      required: true,
+      label: "costo por boleta:",
+      placeholder: "Ingrese costo",
+      type: "number",
+      value: modal.data.precio ? modal.data.precio : 0,
+      extra: "Si deja 0 sera gratuíta",
+    },
   ];
 
   const form = {
@@ -207,7 +308,7 @@ export default function Eventos() {
       <FormReactBoostrap
         data={formBoleta}
         onSubmit={guardarBoleta}
-        idForm="evento"
+        idForm="boleta"
         id={modal.data.id}
         editar={modal.edit}
       />
@@ -241,14 +342,23 @@ export default function Eventos() {
                         >
                           <img src={edit} alt="editar evento" width="35" />
                         </li>
-                        <li onClick={() => eliminarEvento(evento.id)}>
-                          <img src={del} alt="eliminar evento" width="35" />
+                        <li>
+                          <Popconfirm
+                            title="¿Seguro quiere borrar el evento y sus boletas?"
+                            onConfirm={() => eliminarEve(evento.id)}
+                            okText="Si"
+                            cancelText="No"
+                          >
+                            <img src={del} alt="eliminar evento" width="35" />
+                          </Popconfirm>
                         </li>
                       </ul>
                     }
                     style={{ width: "300px", float: "left" }}
                   >
-                    <p>{evento.descripcion}</p>
+                    <p
+                      dangerouslySetInnerHTML={{ __html: evento.descripcion }}
+                    ></p>
                     <p>
                       <b>fecha de inicio: </b>
                       {moment(evento.fechaInicio).format(
@@ -262,11 +372,10 @@ export default function Eventos() {
                         .format("DD/MM/YYYY, h:mm:ss a")}
                     </p>
                     <p>
-                      <b>Boleteria: </b>
-                      {evento.boleteria}
-                    </p>
-                    <p>
-                      <ul className="accione">
+                      <ul className="accione" style={{ paddingLeft: 0 }}>
+                        <li>
+                          <b>Boleteria: </b> {` ( ${evento.boleteria} )`}
+                        </li>
                         {evento.boleteria != 0 && (
                           <li
                             onClick={() =>
@@ -278,7 +387,11 @@ export default function Eventos() {
                         )}
                         <li
                           onClick={() =>
-                            accionesModal("boleta", initDataBoleteria, false)
+                            accionesModal(
+                              "boleta",
+                              { ...initDataBoleteria, idEvento: evento.id },
+                              false
+                            )
                           }
                         >
                           <img src={more} alt="agregar boleta" />
@@ -309,7 +422,7 @@ export default function Eventos() {
       >
         <Modal.Header closeButton>
           <Modal.Title>
-            {modal.data.titulo !== "" ? "Editar Evento" : "Nuevo Evento"}
+            {modal.data.form !== "evento" ? "Acción Evento" : "Acción Boleta"}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>{form[modal.form]}</Modal.Body>

@@ -74,7 +74,7 @@ export function FormReactBoostrap(props) {
         )}
         {data.map((item, i) => (
           <Form.Group controlId={item.name} key={i}>
-            <Form.Label>{item.label}</Form.Label>
+            {item.label && <Form.Label>{item.label}</Form.Label>}
             {item.type !== "textarea" &&
               item.type !== "select" &&
               item.type !== "dateTime" && (
