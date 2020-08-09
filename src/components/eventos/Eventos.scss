@@ -1,0 +1,32 @@
+.agregarEvento {
+  position: absolute;
+  bottom: 30px;
+  right: 30px;
+  cursor: pointer;
+  img {
+    width: 50px;
+    transition: 1s;
+    &:hover {
+      transition: 1s;
+      width: 52px;
+    }
+  }
+}
+
+.accione {
+  list-style: none;
+  margin: 0px;
+  li {
+    display: inline;
+    cursor: pointer;
+    margin-right: 5px;
+    transition: 0.5s;
+    img {
+      width: 20px;
+      &:hover {
+        transition: 0.5s;
+        width: 21px;
+      }
+    }
+  }
+}
